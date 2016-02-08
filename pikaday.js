@@ -251,6 +251,7 @@
 
         // time
         showTime: true,
+        showMinutes: false,
         showSeconds: false,
         use24hour: false,
         incrementHourBy: 1,
@@ -442,24 +443,43 @@
 
     renderTime = function(hh, mm, ss, opts)
     {
+        var sel;
+        if (opts.showMinutes) {
+            sel = hh;
+        } else {
+            sel = hh + (mm / 60);
+        }
         var to_return = '<table cellpadding="0" cellspacing="0" class="pika-time"><tbody><tr>' +
-            renderTimePicker(24, hh, 'pika-select-hour', function(i) {
+            renderTimePicker(24, sel, 'pika-select-hour', function(i) {
                 if (opts.use24hour) {
                     return i;
                 } else {
-                    var to_return = (i%12) + (i<12 ? ' AM' : ' PM');
-                    if (to_return == '0 AM') {
+                    var to_return;
+                    if (!opts.showMinutes) {
+                        var hours = parseInt(i) % 12;
+                        if (hours == 0) hours = 12;
+                        var minutes = parseInt((i % 1) * 60);
+                        if (minutes < 10) minutes = '0' + minutes.toString();
+                        var meridiem = i < 12 ? 'AM' : 'PM';
+                        to_return = hours + ':' + minutes + ' ' + meridiem;
+                    } else {
+                        to_return = (i % 12) + (i < 12 ? ' AM' : ' PM');
+                    }
+                    if (to_return == '0 AM' || to_return == '12:00 AM') {
                         return opts.i18n.midnight;
-                    } else if (to_return == '0 PM') {
+                    } else if (to_return == '0 PM' || to_return == '12:00 PM') {
                         return opts.i18n.noon;
                     } else {
                         return to_return;
                     }
                 }
             },
-            opts.incrementHourBy) +
-            '<td>:</td>' +
-            renderTimePicker(60, mm, 'pika-select-minute', function(i) { if (i < 10) return "0" + i; return i }, opts.incrementMinuteBy);
+            opts.incrementHourBy);
+
+        if (opts.showMinutes) {
+            to_return += '<td>:</td>' +
+                renderTimePicker(60, mm, 'pika-select-minute', function(i) { if (i < 10) return "0" + i; return i }, opts.incrementMinuteBy);
+        }
 
         if (opts.showSeconds) {
             to_return += '<td>:</td>' +
@@ -499,7 +519,9 @@
                     // Preserve time selection when date changed
                     if (self._d && opts.showTime) {
                         newDate.setHours(self._d.getHours());
-                        newDate.setMinutes(self._d.getMinutes());
+                        if (opts.showMinutes) {
+                            newDate.setMinutes(self._d.getMinutes());
+                        }
                         if (opts.showSeconds) {
                             newDate.setSeconds(self._d.getSeconds());
                         }
@@ -550,7 +572,11 @@
                 self.gotoYear(target.value);
             }
             else if (hasClass(target, 'pika-select-hour')) {
-                self.setTime(target.value);
+                if (opts.showMinutes) {
+                    self.setTime(target.value);
+                } else {
+                    self.setTime(parseInt(target.value), parseInt((target.value % 1) * 60));
+                }
             }
             else if (hasClass(target, 'pika-select-minute')) {
                 self.setTime(null, target.value);
@@ -810,13 +836,13 @@
                 this._d = new Date();
                 this._d.setHours(0,0,0,0);
             }
-            if (hours) {
+            if (hours != undefined) {
                 this._d.setHours(hours);
             }
-            if (minutes) {
+            if (minutes != undefined) {
                 this._d.setMinutes(minutes);
             }
-            if (seconds) {
+            if (seconds != undefined) {
                 this._d.setSeconds(seconds);
             }
             this.setDate(this._d);
